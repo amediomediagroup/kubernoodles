@@ -66,16 +66,6 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
-          wait-for-processing: true
-      
-      - name: Dismiss alerts on other architectures
-        if: matrix.arch != 'amd64'
-        uses: advanced-security/dismiss-alerts@v1
-        with:
-          sarif-id: ${{ steps.upload.outputs.sarif-id }}
-          sarif-file: ${{ steps.scan.outputs.sarif }}
-        env:
-            GITHUB_TOKEN: ${{ github.token }}
 
       - name: Generate that SBOM
         uses: anchore/sbom-action@v0
