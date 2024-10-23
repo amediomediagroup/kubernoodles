@@ -2,10 +2,10 @@ name: 🧪 Test building with Kaniko
 
 on:
   workflow_dispatch:
-
+  push:
 jobs:
   build:
-    runs-on: [kaniko-worker]
+    runs-on: [amg-runner-set]
     container:
       image: gcr.io/kaniko-project/executor:debug
     permissions:
