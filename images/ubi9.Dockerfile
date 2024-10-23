@@ -9,7 +9,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.documentation="https://github.com/some-natalie/kubernoodles/README.md"
 
 # Arguments
-ARG TARGETPLATFORM
+ARG TARGETPLATFORM=arm64
 ARG RUNNER_VERSION=2.319.1
 ARG RUNNER_CONTAINER_HOOKS_VERSION=0.6.1
 
