@@ -2,7 +2,7 @@ name: 🍜 Build/publish all runners
 
 on:
   workflow_dispatch: # build on demand
-  schedule:
+  #schedule:
     # - cron: "43 6 * * 0" # build every Sunday at 6:43 AM UTC
 
 jobs:
