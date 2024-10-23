@@ -5,7 +5,7 @@ on:
   push:
 jobs:
   build:
-    runs-on: [amg-runner-set]
+    runs-on: amg-runner-set
     container:
       image: gcr.io/kaniko-project/executor:debug
     permissions:
