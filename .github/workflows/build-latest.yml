@@ -70,7 +70,7 @@ jobs:
       
       - name: Dismiss alerts on other architectures
         if: matrix.arch != 'amd64'
-        uses: advanced-security/dismiss-alerts@v1
+        uses: advanced-security/dismiss-alerts@v2
         with:
           sarif-id: ${{ steps.upload.outputs.sarif-id }}
           sarif-file: ${{ steps.scan.outputs.sarif }}
