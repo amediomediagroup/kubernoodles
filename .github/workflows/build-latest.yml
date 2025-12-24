@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-all:
-    runs-on: amg-runner-001 # use the GitHub-hosted runner to build the image
+    runs-on: arc-runner-set # use the GitHub-hosted runner to build the image
     permissions:
       contents: write # for uploading the SBOM to the release
       packages: write # for uploading the finished container
