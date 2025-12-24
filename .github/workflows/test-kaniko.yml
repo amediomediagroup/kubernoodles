@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: [kaniko-worker]
+    runs-on: arc-runner-set
     container:
       image: gcr.io/kaniko-project/executor:debug
     permissions:
