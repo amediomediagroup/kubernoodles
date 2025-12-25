@@ -5,6 +5,8 @@ jobs:
   build-image:
     name: Build image without Containerfile
     runs-on: arc-runner-set
+    container:
+     image: maven
 
     steps:
     - uses: actions/checkout@v4
