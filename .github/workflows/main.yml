@@ -15,22 +15,11 @@ jobs:
         ports:
           - 2375:2375
     container:
-      image: ubuntu:latest
+      image: docker:cli
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Docker
+      - name: Run Docker
         run: |
-          apt-get update
-          apt-get install -y docker.io
-
-      - name: Test connection
-        run: |
-          apt-get update
-          apt-get install -y iputils-ping
-          ping -c 3 docker
-          docker run helloworld
+          docker run hello-world
 
       - name: Test Docker
         run: |
