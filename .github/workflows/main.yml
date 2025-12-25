@@ -1,27 +1,23 @@
-name: Test Docker on GitHub Actions
-
-on:
-  push:
-    branches: 
-      - test
+name: Build Image
+on: [push]
 
 jobs:
-  push_container:
+  build-image:
+    name: Build image without Containerfile
     runs-on: arc-runner-set
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
-        ports:
-          - 2375:2375
-    container:
-      image: docker:cli
-    steps:
-      - name: Run Docker
-        run: |
-          docker run hello-world
 
-      - name: Test Docker
-        run: |
-          docker version
-          docker info
+    steps:
+    - uses: actions/checkout@v4
+
+    - run: mvn package
+
+    - name: Build Image
+      uses: redhat-actions/buildah-build@v2
+      with:
+        base-image: docker.io/fabric8/java-alpine-openjdk11-jre
+        image: my-new-image
+        tags: v1
+        content: |
+          target/spring-petclinic-2.3.0.BUILD-SNAPSHOT.jar
+        entrypoint: java -jar spring-petclinic-2.3.0.BUILD-SNAPSHOT.jar
+        port: 8080
