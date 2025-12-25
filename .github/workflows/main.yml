@@ -30,6 +30,7 @@ jobs:
           apt-get update
           apt-get install -y iputils-ping
           ping -c 3 docker
+          docker run helloworld
 
       - name: Test Docker
         run: |
