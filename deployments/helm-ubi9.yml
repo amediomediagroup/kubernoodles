@@ -31,5 +31,5 @@ template:
   spec:
     containers:
       - name: runner
-        image: ghcr.io/some-natalie/kubernoodles/ubi9:latest
+        image: ghcr.io/some-natalie/amediomediagroup/ubi9:latest
         command: ["/home/runner/run.sh"]
