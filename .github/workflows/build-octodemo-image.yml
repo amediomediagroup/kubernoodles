@@ -32,4 +32,4 @@ jobs:
         with:
           file: "images/ghes-demo.Dockerfile"
           push: true
-          tags: ghcr.io/some-natalie/amediomediagroup/octodemo:${{ github.event.inputs.ghes-tag }}
+          tags: ghcr.io/amediomediagroup/octodemo:${{ github.event.inputs.ghes-tag }}
