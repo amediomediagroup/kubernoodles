@@ -10,7 +10,9 @@ on:
       - "images/**.sh"
       - "images/software/*"
       - ".github/workflows/test-ubi10.yml"
-
+permissions:
+    contents: read
+    packages: write
 jobs:
   build:
     name: Build test image
