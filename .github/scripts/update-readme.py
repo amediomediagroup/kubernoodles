@@ -14,7 +14,7 @@ import os
 image_list = [
     {
         "shortname": "ubi8",
-        "fulltag": "ghcr.io/some-natalie/amediomediagroup/ubi8:latest",
+        "fulltag": "ghcr.io/amediomediagroup/kubernoodles/ubi8:latest",
         "baseimage": "[ubi8-init:8.10](https://catalog.redhat.com/software/containers/ubi8-init/5c6aea74dd19c77a158f0892)",
         "architectures": "x86_64<br>arm64",
         "virtualization": ":x:",
@@ -23,7 +23,7 @@ image_list = [
     },
     {
         "shortname": "ubi9",
-        "fulltag": "ghcr.io/some-natalie/amediomediagroup/ubi9:latest",
+        "fulltag": "ghcr.io/amediomediagroup/kubernoodles/ubi9:latest",
         "baseimage": "[ubi9-init:9.6](https://catalog.redhat.com/software/containers/ubi9-init/6183297540a2d8e95c82e8bd)",
         "architectures": "x86_64<br>arm64",
         "virtualization": ":x:",
@@ -32,7 +32,7 @@ image_list = [
     },
     {
         "shortname": "ubi10",
-        "fulltag": "ghcr.io/some-natalie/amediomediagroup/ubi10:latest",
+        "fulltag": "ghcr.io/amediomediagroup/kubernoodles/ubi10:latest",
         "baseimage": "[ubi10-init:10.0](https://catalog.redhat.com/software/containers/ubi10-init/66f2aabb701371ba5f56497a?image=686bd755edf0de590015a72d&container-tabs=overview)",
         "architectures": "x86_64<br>arm64",
         "virtualization": ":x:",
@@ -41,7 +41,7 @@ image_list = [
     },
     {
         "shortname": "rootless-ubuntu-jammy",
-        "fulltag": "ghcr.io/some-natalie/amediomediagroup/rootless-ubuntu-jammy:latest",
+        "fulltag": "ghcr.io/amediomediagroup/kubernoodles/rootless-ubuntu-jammy:latest",
         "baseimage": "[ubuntu:jammy](https://hub.docker.com/_/ubuntu) (22.04 LTS)",
         "architectures": "x86_64<br>arm64",
         "virtualization": "rootless Docker-in-Docker",
@@ -50,7 +50,7 @@ image_list = [
     },
     {
         "shortname": "rootless-ubuntu-numbat",
-        "fulltag": "ghcr.io/some-natalie/amediomediagroup/rootless-ubuntu-numbat:latest",
+        "fulltag": "ghcr.io/amediomediagroup/kubernoodles/rootless-ubuntu-numbat:latest",
         "baseimage": "[ubuntu:numbat](https://hub.docker.com/_/ubuntu) (24.04 LTS)",
         "architectures": "x86_64<br>arm64",
         "virtualization": "rootless Docker-in-Docker",
@@ -59,7 +59,7 @@ image_list = [
     },
     {
         "shortname": "wolfi:latest",
-        "fulltag": "ghcr.io/some-natalie/amediomediagroup/wolfi:latest",
+        "fulltag": "ghcr.io/amediomediagroup/kubernoodles/wolfi:latest",
         "baseimage": "[wolfi-base:latest](https://images.chainguard.dev/directory/image/wolfi-base/versions)",
         "architectures": "x86_64<br>arm64",
         "virtualization": ":x:",
@@ -76,7 +76,7 @@ def get_date():
     return date
 
 
-# Get the CVE count by image (full tag, eg "ghcr.io/some-natalie/amediomediagroup/wolfi:latest")
+# Get the CVE count by image (full tag, eg "ghcr.io/amediomediagroup/kubernoodles/wolfi:latest")
 def get_cve_count(image):
     # Get the CVE count
     cve_count = os.popen("grype -o json " + image).read()

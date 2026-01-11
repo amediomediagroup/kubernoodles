@@ -45,7 +45,7 @@ jobs:
         with:
           file: "images/ubi10.Dockerfile"
           push: true
-          tags: ghcr.io/some-natalie/amediomediagroup/ubi10:test
+          tags: ghcr.io/amediomediagroup/kubernoodles/ubi10:test
 
   deploy:
     name: Deploy test image to `test-runners` namespace

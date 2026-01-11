@@ -31,6 +31,6 @@ template:
   spec:
     containers:
       - name: runner
-        image: ghcr.io/some-natalie/amediomediagroup/ubi8:test
+        image: ghcr.io/amediomediagroup/kubernoodles/ubi8:test
         imagePullPolicy: Always
         command: ["/home/runner/run.sh"]

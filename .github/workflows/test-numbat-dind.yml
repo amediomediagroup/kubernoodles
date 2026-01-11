@@ -43,7 +43,7 @@ jobs:
         with:
           file: "images/rootless-ubuntu-numbat.Dockerfile"
           push: true
-          tags: ghcr.io/some-natalie/amediomediagroup/rootless-ubuntu-numbat:test
+          tags: ghcr.io/amediomediagroup/kubernoodles/rootless-ubuntu-numbat:test
 
   deploy:
     name: Deploy test image to `test-runners` namespace
