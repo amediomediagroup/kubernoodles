@@ -29,6 +29,8 @@ minRunners: 1
 
 template:
   spec:
+    imagePullSecrets:
+    - name: ghcr-auth
     containers:
       - name: runner
         image: ghcr.io/amediomediagroup/kubernoodles/wolfi:test

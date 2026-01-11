@@ -32,6 +32,8 @@ minRunners: 1
 
 template:
   spec:
+    imagePullSecrets:
+      - name: ghcr-auth
     initContainers:
       - name: init-dind-externals
         image: ghcr.io/amediomediagroup/kubernoodles/rootless-ubuntu-jammy:test

@@ -50,6 +50,11 @@ jobs:
 
       - name: Update deployment (using latest chart of actions-runner-controller-charts/auto-scaling-runner-set)
         run: |
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --namespace test-runners
           helm install ${{ github.event.inputs.target_scale_set }} \
           --namespace "${{ github.event.inputs.runner_namespace }}" \
           --set githubConfigSecret.github_app_id="${{ vars.ARC_APP_ID }}" \

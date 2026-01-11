@@ -28,7 +28,10 @@ minRunners: 1
 # runnerGroup: "default"
 
 template:
+  
   spec:
+    imagePullSecrets:
+      - name: ghcr-auth
     containers:
       - name: runner
         image: ghcr.io/amediomediagroup/kubernoodles/ubi9:test
