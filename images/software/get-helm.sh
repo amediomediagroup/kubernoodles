@@ -184,7 +184,7 @@ installFile() {
   HELM_TMP="$HELM_TMP_ROOT/$BINARY_NAME"
   mkdir -p "$HELM_TMP"
   tar xf "$HELM_TMP_FILE" -C "$HELM_TMP" --no-same-owner --no-same-permissions || {
-    echo "Initial tar extraction failed, retrying without ownership flags"
+    echo "Initial tar extraction failed, retrying with default options"
     tar xf "$HELM_TMP_FILE" -C "$HELM_TMP" || {
       echo "Helm archive extraction failed"
       exit 1
