@@ -183,7 +183,13 @@ verifyFile() {
 installFile() {
   HELM_TMP="$HELM_TMP_ROOT/$BINARY_NAME"
   mkdir -p "$HELM_TMP"
-  tar xf "$HELM_TMP_FILE" -C "$HELM_TMP" --no-same-owner --no-same-permissions
+  tar xf "$HELM_TMP_FILE" -C "$HELM_TMP" --no-same-owner --no-same-permissions || {
+    echo "Initial tar extraction failed, retrying with default options"
+    tar xf "$HELM_TMP_FILE" -C "$HELM_TMP" || {
+      echo "Helm archive extraction failed"
+      exit 1
+    }
+  }
   HELM_TMP_BIN="$HELM_TMP/$OS-$ARCH/helm"
   echo "Preparing to install $BINARY_NAME into ${HELM_INSTALL_DIR}"
   runAsRoot cp "$HELM_TMP_BIN" "$HELM_INSTALL_DIR/$BINARY_NAME"
