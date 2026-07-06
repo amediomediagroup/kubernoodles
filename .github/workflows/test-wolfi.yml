@@ -42,7 +42,7 @@ jobs:
         with:
           file: "images/wolfi.Dockerfile"
           push: true
-          tags: ghcr.io/some-natalie/kubernoodles/wolfi:test
+          tags: ghcr.io/amediomediagroup/kubernoodles/wolfi:test
 
   deploy:
     name: Deploy test image to `test-runners` namespace
