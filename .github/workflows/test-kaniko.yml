@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: [test-k8s
+    runs-on: [test-k8s]
     container:
       image: gcr.io/kaniko-project/executor:debug
     permissions:
