@@ -21,12 +21,12 @@ jobs:
     # ---------------------------------------------------------
     container:
       image: moby/buildkit:rootless
-      options: >-
-        --user root
-        --privileged
-        --security-opt seccomp=unconfined
-        --security-opt apparmor=unconfined
-        --entrypoint ""
+      # options: >-
+      #   --user root
+      #   --privileged
+      #   --security-opt seccomp=unconfined
+      #   --security-opt apparmor=unconfined
+      #   --entrypoint ""
 
     steps:
       - name: Build and push with Cache & Multi-arch
