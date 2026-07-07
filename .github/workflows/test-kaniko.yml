@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: [test-wolfi]
+    runs-on: [test-ubi10]
     container:
       image: gcr.io/kaniko-project/executor:debug
     permissions:
