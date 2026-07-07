@@ -1,0 +1,58 @@
+name: 🧪 Test building Multi-Arch with Kaniko
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # STEP 1: Build song song trên các kiến trúc Runner khác nhau (hoặc dùng QEMU nếu cùng 1 loại máy host)
+  build-slices:
+    runs-on: [test-k8s] # Hoặc cấu hình matrix nếu bạn có nhiều loại node k8s khác nhau
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
+    
+    container:
+      image: gcr.io/kaniko-project/executor:debug
+
+    steps:
+      - name: Build and push architecture slice
+        run: |
+          mkdir -p /kaniko/.docker
+          AUTH=$(echo -n "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
+          echo "{\"auths\": {\"ghcr.io\": {\"auth\": \"${AUTH}\"}, \"https://ghcr.io\": {\"auth\": \"${AUTH}\"}}}" > /kaniko/.docker/config.json
+
+          GIT_CONTEXT_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git#${{ github.ref }}"
+
+          # Đẩy image kèm hậu tố kiến trúc (ví dụ: :test-amd64 và :test-arm64)
+          /kaniko/executor \
+            --dockerfile="./images/kaniko-build-test.Dockerfile" \
+            --context="${GIT_CONTEXT_URL}" \
+            --destination="ghcr.io/amediomediagroup/kubernoodles/kaniko-build:test-${{ matrix.architecture }}" \
+            --custom-platform="linux/${{ matrix.architecture }}" \
+            --cache=true \
+            --cache-repo="ghcr.io/amediomediagroup/kubernoodles/kaniko-build/cache" \
+            --push-retry 5
+
+  # STEP 2: Tạo Manifest định danh chung để gộp 2 image trên thành 1 tag ":test" duy nhất
+  create-manifest:
+    needs: build-slices
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push Multi-Arch Manifest
+        run: |
+          # Khởi tạo một manifest mới gộp cả 2 tag phụ lại
+          docker manifest create ghcr.io/amediomediagroup/kubernoodles/kaniko-build:test \
+            --amend ghcr.io/amediomediagroup/kubernoodles/kaniko-build:test-amd64 \
+            --amend ghcr.io/amediomediagroup/kubernoodles/kaniko-build:test-arm64
+
+          # Push Manifest tổng lên GHCR
+          docker manifest push ghcr.io/amediomediagroup/kubernoodles/kaniko-build:test
