@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: test-k8s
     
     # ---------------------------------------------------------
     # 1. CẤU HÌNH PERMISSIONS (QUYỀN CỦA GITHUB ACTIONS)
