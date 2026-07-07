@@ -16,9 +16,8 @@ jobs:
       - name: Build and push container test
         run: |
           # Write config file
-          AUTH=$(echo -n ${{ github.actor }}:${{ secrets.GITHUB_TOKEN }} | base64)
-          echo "{\"auths\": {\"ghcr.io\": {\"auth\": \"${AUTH}\"}}}" > /kaniko/.docker/config.json
-
+          AUTH=$(echo -n "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
+          echo "{\"auths\": {\"ghcr.io\": {\"auth\": \"${AUTH}\"}, \"https://ghcr.io\": {\"auth\": \"${AUTH}\"}}}" > /kaniko/.docker/config.json
           # Configure git
           export GIT_USERNAME="kaniko-bot"
           export GIT_PASSWORD="${{ secrets.GITHUB_TOKEN }}"
