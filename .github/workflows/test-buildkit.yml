@@ -36,7 +36,7 @@ jobs:
           IMAGE_NAME: amediomediagroup/kubernoodles/kaniko-build:test
           # Thêm biến CACHE để lưu trữ các layer build chung
           CACHE_IMAGE: amediomediagroup/kubernoodles/kaniko-build:buildcache
-          BUILDKITD_FLAGS: "--rootless --oci-worker-no-process-sandbox"
+          # BUILDKITD_FLAGS: "--rootless --oci-worker-no-process-sandbox"
           
         run: |
           echo "🚀 Khởi tạo môi trường Rootless..."
