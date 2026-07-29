@@ -58,6 +58,9 @@ jobs:
           - name: kaniko-build-test
             image: amediomediagroup/kubernoodles/kaniko-build
             dockerfile: images/kaniko-build-test.Dockerfile
+          - name: buildkit-tools
+            image: amediomediagroup/kubernoodles/buildkit-tools
+            dockerfile: images/buildkit-tools.Dockerfile
 
     steps:
       - name: Generate all tags
