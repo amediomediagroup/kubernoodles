@@ -2,10 +2,10 @@ name: 🧪 Test building with BuildKit (Daemonless)
 
 on:
   push:
-
+    branches: feat/build-kit
 jobs:
   build:
-    runs-on: test-k8s
+    runs-on: gha-k8s-runners
     
     # ---------------------------------------------------------
     # 1. CẤU HÌNH PERMISSIONS (QUYỀN CỦA GITHUB ACTIONS)
