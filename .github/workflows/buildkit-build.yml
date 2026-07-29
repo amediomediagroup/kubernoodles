@@ -22,6 +22,8 @@ on:
         default: ''
 
 env:
+  BUILDKITD_FLAGS: --rootless --oci-worker-no-process-sandbox
+  BUILDKIT_OCI_EXECUTOR: no-process-sandbox
   REGISTRY: ghcr.io
   IMAGE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}
   CACHE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}:buildcache
