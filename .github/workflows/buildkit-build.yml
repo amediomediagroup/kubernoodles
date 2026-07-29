@@ -1,0 +1,77 @@
+name: 🧪 Build with BuildKit (Daemonless)
+
+on:
+  push:
+    branches: [feat/build-kit]
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: 'Image name (e.g. amediomediagroup/kubernoodles/wolfi-squid)'
+        default: 'amediomediagroup/kubernoodles/wolfi-squid'
+      dockerfile:
+        description: 'Dockerfile path in context repo'
+        default: 'images/wolfi.squid.Dockerfile'
+      context:
+        description: 'Git context (e.g. https://github.com/user/repo.git#refs/heads/main)'
+        default: 'https://github.com/amediomediagroup/kubernoodles.git#refs/heads/main'
+      platforms:
+        description: 'Comma-separated target platforms'
+        default: 'linux/amd64,linux/arm64'
+      extra_tags:
+        description: 'Additional tags (comma-separated)'
+        default: ''
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}
+  CACHE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}:buildcache
+  PLATFORMS: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
+  CONTEXT: ${{ inputs.context || 'https://github.com/trucpd/kubernoodles.git#refs/heads/main' }}
+  DOCKERFILE: ${{ inputs.dockerfile || 'images/kaniko-build-test.Dockerfile' }}
+
+jobs:
+  build:
+    runs-on: gha-k8s-runners
+    permissions:
+      attestations: write
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Generate all tags
+        id: tags
+        shell: sh
+        run: |
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          ALL_TAGS="test $BRANCH sha-$SHA ${{ inputs.extra_tags }}"
+          # BuildKit output names: comma-separated
+          NAMES=""
+          for TAG in $ALL_TAGS; do
+            [ -z "$TAG" ] && continue
+            [ -n "$NAMES" ] && NAMES="${NAMES},"
+            NAMES="${NAMES}$REGISTRY/$IMAGE:$TAG"
+          done
+          echo "names=$NAMES" >> $GITHUB_OUTPUT
+
+      - name: Set up GHCR auth
+        shell: sh
+        run: |
+          mkdir -p /run/user/1000 /tmp/.docker
+          AUTH=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
+          echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH\"}}}" > /tmp/.docker/config.json
+          echo "DOCKER_CONFIG=/tmp/.docker" >> $GITHUB_ENV
+          echo "XDG_RUNTIME_DIR=/run/user/1000" >> $GITHUB_ENV
+
+      - name: Build multi-arch + push all tags
+        shell: sh
+        run: |
+          buildctl-daemonless.sh build \
+            --frontend dockerfile.v0 \
+            --opt context=$CONTEXT \
+            --opt filename=$DOCKERFILE \
+            --opt platform=$PLATFORMS \
+            --export-cache type=registry,ref=$REGISTRY/$CACHE,mode=max \
+            --import-cache type=registry,ref=$REGISTRY/$CACHE \
+            --output type=image,name=${{ steps.tags.outputs.names }},push=true
