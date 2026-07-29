@@ -26,6 +26,10 @@ env:
   BUILDKIT_OCI_EXECUTOR: no-process-sandbox
   REGISTRY: ghcr.io
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
+  # Proxy for DNS-fix: buildkit:rootless has DNS resolution issues in its rootless network namespace
+  http_proxy: http://10.43.24.227:3128
+  https_proxy: http://10.43.24.227:3128
+  no_proxy: 10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1
 
 jobs:
   build:
