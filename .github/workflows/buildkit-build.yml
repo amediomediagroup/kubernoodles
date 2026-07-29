@@ -13,7 +13,7 @@ on:
         default: 'images/wolfi.squid.Dockerfile'
       context:
         description: 'Git context (e.g. https://github.com/user/repo.git#refs/heads/main)'
-        default: 'https://github.com/amediomediagroup/kubernoodles.git#refs/heads/main'
+        default: ''
       platforms:
         description: 'Comma-separated target platforms'
         default: 'linux/amd64,linux/arm64'
@@ -28,7 +28,7 @@ env:
   IMAGE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}
   CACHE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}:buildcache
   PLATFORMS: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
-  CONTEXT: ${{ inputs.context || 'https://github.com/trucpd/kubernoodles.git#refs/heads/main' }}
+  CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
   DOCKERFILE: ${{ inputs.dockerfile || 'images/wolfi.squid.Dockerfile' }}
 
 jobs:
