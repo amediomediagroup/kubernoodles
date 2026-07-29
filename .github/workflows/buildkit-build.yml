@@ -10,7 +10,7 @@ on:
         default: 'amediomediagroup/kubernoodles/squid'
       dockerfile:
         description: 'Dockerfile path in context repo'
-        default: 'images/alpine.squid.Dockerfile'
+        default: 'images/chainguard.squid.Dockerfile'
       context:
         description: 'Git context (e.g. https://github.com/user/repo.git#refs/heads/main)'
         default: ''
@@ -29,7 +29,7 @@ env:
   CACHE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/squid' }}:buildcache
   PLATFORMS: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
-  DOCKERFILE: ${{ inputs.dockerfile || 'images/alpine.squid.Dockerfile' }}
+  DOCKERFILE: ${{ inputs.dockerfile || 'images/chainguard.squid.Dockerfile' }}
 
 jobs:
   build:
