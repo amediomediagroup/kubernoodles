@@ -88,7 +88,7 @@ jobs:
       - name: Install buildkit and curl
         shell: sh
         run: |
-          apk add --no-cache buildctl buildkit curl
+          apk add --no-cache buildctl buildkit curl git
 
       - name: Set up GHCR auth
         shell: sh
@@ -111,9 +111,9 @@ jobs:
           # Start buildkitd, run build, then clean up
           buildkitd --oci-worker-no-process-sandbox &
           BUILDKITD_PID=$!
-          for i in $(seq 1 10); do
+          for i in $(seq 1 15); do
             buildctl debug workers >/dev/null 2>&1 && break
-            sleep 1
+            sleep 2
           done
           buildctl build \
             --frontend dockerfile.v0 \
