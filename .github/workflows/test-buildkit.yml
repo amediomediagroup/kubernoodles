@@ -1,8 +1,7 @@
 name: 🧪 Test building with BuildKit (Daemonless)
 
 on:
-  push:
-    branches: feat/build-kit
+  workflow_dispatch:
 jobs:
   build:
     runs-on: gha-k8s-runners
