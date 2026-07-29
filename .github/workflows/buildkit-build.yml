@@ -7,10 +7,10 @@ on:
     inputs:
       image_name:
         description: 'Image name (e.g. amediomediagroup/kubernoodles/wolfi-squid)'
-        default: 'amediomediagroup/kubernoodles/wolfi-squid'
+        default: 'amediomediagroup/kubernoodles/squid'
       dockerfile:
         description: 'Dockerfile path in context repo'
-        default: 'images/wolfi.squid.Dockerfile'
+        default: 'images/alpine.squid.Dockerfile'
       context:
         description: 'Git context (e.g. https://github.com/user/repo.git#refs/heads/main)'
         default: ''
@@ -25,11 +25,11 @@ env:
   BUILDKITD_FLAGS: --rootless --oci-worker-no-process-sandbox
   BUILDKIT_OCI_EXECUTOR: no-process-sandbox
   REGISTRY: ghcr.io
-  IMAGE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}
-  CACHE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}:buildcache
+  IMAGE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/squid' }}
+  CACHE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/squid' }}:buildcache
   PLATFORMS: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
-  DOCKERFILE: ${{ inputs.dockerfile || 'images/wolfi.squid.Dockerfile' }}
+  DOCKERFILE: ${{ inputs.dockerfile || 'images/alpine.squid.Dockerfile' }}
 
 jobs:
   build:
