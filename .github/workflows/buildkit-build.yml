@@ -34,8 +34,9 @@ jobs:
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
-      contents: read
+      contents: write
       packages: write
+      security-events: write
       id-token: write
     strategy:
       matrix:
@@ -89,6 +90,7 @@ jobs:
           echo "XDG_RUNTIME_DIR=/run/user/1000" >> $GITHUB_ENV
 
       - name: Build multi-arch + push all tags
+        id: build
         shell: sh
         run: |
           buildctl-daemonless.sh build \
@@ -101,4 +103,59 @@ jobs:
             --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
             --export-cache type=registry,ref=${{ steps.tags.outputs.CACHE_REF }},mode=max \
             --import-cache type=registry,ref=${{ steps.tags.outputs.CACHE_REF }} \
-            --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
+            --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true 2>&1 | tee /tmp/buildctl.log
+          DIGEST=$(grep -o 'sha256:[a-f0-9]\{64\}' /tmp/buildctl.log | tail -1)
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Install scan/SBOM/signing tools
+        shell: sh
+        run: |
+          apk add --no-cache curl
+          # grype
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin v0.86.0
+          # syft
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.19.0
+          # cosign
+          curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o /usr/local/bin/cosign
+          chmod +x /usr/local/bin/cosign
+          grype version && syft version && cosign version
+
+      - name: Scan image with Grype
+        shell: sh
+        continue-on-error: true
+        run: |
+          FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
+          grype "$FIRST_TAG" \
+            --fail-on high \
+            --only-fixed \
+            -o sarif > /tmp/grype-results.sarif 2>&1 || true
+
+      - name: Generate SBOM with Syft
+        shell: sh
+        continue-on-error: true
+        run: |
+          FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
+          syft "$FIRST_TAG" \
+            -o spdx-json > /tmp/sbom.spdx.json 2>&1 || true
+
+      - name: Sign the image with Cosign
+        shell: sh
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
+          cosign sign --yes "$FIRST_TAG@${{ steps.build.outputs.digest }}"
+
+      - name: Upload scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162
+        with:
+          sarif_file: /tmp/grype-results.sarif
+          wait-for-processing: true
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
+        with:
+          subject-name: ghcr.io/${{ matrix.target.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
