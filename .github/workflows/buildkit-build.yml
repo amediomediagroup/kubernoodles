@@ -121,12 +121,14 @@ jobs:
       - name: Install scan/SBOM/signing tools
         shell: sh
         run: |
-          BINDIR=/usr/local/bin
+          BINDIR=/home/user/bin
+          mkdir -p $BINDIR
           wget -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
           wget -qO- "https://github.com/anchore/grype/releases/download/v0.86.0/grype_0.86.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR grype
           wget -qO- "https://github.com/anchore/syft/releases/download/v1.19.0/syft_1.19.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR syft
           wget -qO "$BINDIR/cosign" "https://github.com/sigstore/cosign/releases/download/v2.4.3/cosign-linux-amd64"
           chmod +x $BINDIR/*
+          echo "PATH=$BINDIR:$PATH" >> $GITHUB_ENV
 
       - name: Resolve image digest
         id: digest
