@@ -117,9 +117,10 @@ jobs:
         shell: sh
         run: |
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          wget -qO- https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz \
-            | tar -xz crane
-          DIGEST=$(./crane digest "$FIRST_TAG")
+          # download crane binary directly
+          wget -qO /tmp/crane https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz
+          tar -xzf /tmp/crane -C /tmp crane
+          DIGEST=$(/tmp/crane digest "$FIRST_TAG")
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
           echo "image_name=ghcr.io/${{ matrix.target.image }}" >> $GITHUB_OUTPUT
 
