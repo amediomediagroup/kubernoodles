@@ -39,6 +39,7 @@ jobs:
       security-events: write
       id-token: write
     strategy:
+      fail-fast: false
       matrix:
         target:
           - name: wolfi-squid
@@ -93,6 +94,13 @@ jobs:
         id: build
         shell: sh
         run: |
+          CACHE_REF="${{ steps.tags.outputs.CACHE_REF }}"
+          CACHE_ARGS="--export-cache type=registry,ref=$CACHE_REF,mode=max"
+          # only import cache if it exists (may not exist for first build)
+          if curl -sSfI -H "Authorization: Bearer $(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64)" \
+            "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" >/dev/null 2>&1; then
+            CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
+          fi
           buildctl-daemonless.sh build \
             --frontend dockerfile.v0 \
             --opt context=$CONTEXT \
@@ -101,8 +109,7 @@ jobs:
             --opt build-arg:http_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
             --opt build-arg:https_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
             --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
-            --export-cache type=registry,ref=${{ steps.tags.outputs.CACHE_REF }},mode=max \
-            --import-cache type=registry,ref=${{ steps.tags.outputs.CACHE_REF }} \
+            $CACHE_ARGS \
             --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true 2>&1 | tee /tmp/buildctl.log
           DIGEST=$(grep -o 'sha256:[a-f0-9]\{64\}' /tmp/buildctl.log | tail -1)
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
@@ -111,13 +118,13 @@ jobs:
         shell: sh
         run: |
           apk add --no-cache curl
-          # grype
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin v0.86.0
-          # syft
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.19.0
-          # cosign
-          curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o /usr/local/bin/cosign
-          chmod +x /usr/local/bin/cosign
+          export BINDIR=/tmp/bin && mkdir -p $BINDIR
+          echo "BINDIR=$BINDIR" >> $GITHUB_ENV
+          echo "$BINDIR" >> $GITHUB_PATH
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b $BINDIR v0.86.0
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b $BINDIR v1.19.0
+          curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o $BINDIR/cosign
+          chmod +x $BINDIR/cosign
           grype version && syft version && cosign version
 
       - name: Scan image with Grype
