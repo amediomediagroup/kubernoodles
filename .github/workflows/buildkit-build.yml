@@ -22,16 +22,18 @@ on:
         default: ''
 
 env:
+  BUILDKITD_FLAGS: --rootless --oci-worker-no-process-sandbox
+  BUILDKIT_OCI_EXECUTOR: no-process-sandbox
   REGISTRY: ghcr.io
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
-  http_proxy: http://squid.arc-proxy.svc.cluster.local:3128
-  https_proxy: http://squid.arc-proxy.svc.cluster.local:3128
+  http_proxy: http://10.43.24.227:3128
+  https_proxy: http://10.43.24.227:3128
   no_proxy: 10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1
 
 jobs:
   build:
     container:
-      image: alpine:3.21
+      image: moby/buildkit:rootless
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
@@ -85,17 +87,14 @@ jobs:
           DF="${{ inputs.dockerfile || matrix.target.dockerfile }}"
           echo "path=$DF" >> $GITHUB_OUTPUT
 
-      - name: Install buildkit and curl
-        shell: sh
-        run: |
-          apk add --no-cache buildctl buildkit curl git
-
       - name: Set up GHCR auth
         shell: sh
         run: |
-          mkdir -p ~/.docker
+          mkdir -p /run/user/1000 /tmp/.docker
           AUTH=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
-          echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH\"}}}" > ~/.docker/config.json
+          echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH\"}}}" > /tmp/.docker/config.json
+          echo "DOCKER_CONFIG=/tmp/.docker" >> $GITHUB_ENV
+          echo "XDG_RUNTIME_DIR=/run/user/1000" >> $GITHUB_ENV
 
       - name: Build multi-arch + push all tags
         id: build
@@ -108,14 +107,7 @@ jobs:
             "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null; then
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
           fi
-          # Start buildkitd, run build, then clean up
-          buildkitd &
-          BUILDKITD_PID=$!
-          for i in $(seq 1 15); do
-            buildctl debug workers >/dev/null 2>&1 && break
-            sleep 2
-          done
-          buildctl build \
+          buildctl-daemonless.sh build \
             --frontend dockerfile.v0 \
             --opt context=$CONTEXT \
             --opt filename=${{ steps.df.outputs.path }} \
@@ -125,8 +117,6 @@ jobs:
             --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
             $CACHE_ARGS \
             --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
-          kill $BUILDKITD_PID 2>/dev/null || true
-          wait $BUILDKITD_PID 2>/dev/null || true
 
       - name: Install scan/SBOM/signing tools
         shell: sh
