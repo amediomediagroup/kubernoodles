@@ -76,6 +76,9 @@ jobs:
             --opt context=$CONTEXT \
             --opt filename=$DOCKERFILE \
             --opt platform=$PLATFORMS \
+            --opt build-arg:http_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
+            --opt build-arg:https_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
+            --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
             --export-cache type=registry,ref=$REGISTRY/$CACHE,mode=max \
             --import-cache type=registry,ref=$REGISTRY/$CACHE \
             --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
