@@ -109,7 +109,7 @@ jobs:
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
           fi
           # Start buildkitd, run build, then clean up
-          buildkitd --oci-worker-no-process-sandbox &
+          buildkitd &
           BUILDKITD_PID=$!
           for i in $(seq 1 15); do
             buildctl debug workers >/dev/null 2>&1 && break
