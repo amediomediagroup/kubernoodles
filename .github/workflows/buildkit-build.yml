@@ -96,7 +96,6 @@ jobs:
         run: |
           CACHE_REF="${{ steps.tags.outputs.CACHE_REF }}"
           CACHE_ARGS="--export-cache type=registry,ref=$CACHE_REF,mode=max"
-          # only import cache if it exists (may not exist for first build)
           if curl -sSfI -H "Authorization: Bearer $(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64)" \
             "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" >/dev/null 2>&1; then
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
@@ -110,48 +109,50 @@ jobs:
             --opt build-arg:https_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
             --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
             $CACHE_ARGS \
-            --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true 2>&1 | tee /tmp/buildctl.log
-          DIGEST=$(grep -o 'sha256:[a-f0-9]\{64\}' /tmp/buildctl.log | tail -1)
+            --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
+
+      - name: Resolve image digest
+        id: digest
+        shell: sh
+        run: |
+          FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
+          # use crane to get the digest
+          curl -sSfL https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz \
+            | tar -xz crane
+          DIGEST=$(./crane digest "$FIRST_TAG")
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "image_name=ghcr.io/${{ matrix.target.image }}" >> $GITHUB_OUTPUT
 
       - name: Install scan/SBOM/signing tools
         shell: sh
         run: |
-          apk add --no-cache curl
-          export BINDIR=/tmp/bin && mkdir -p $BINDIR
-          echo "BINDIR=$BINDIR" >> $GITHUB_ENV
+          BINDIR=/tmp/bin && mkdir -p $BINDIR
           echo "$BINDIR" >> $GITHUB_PATH
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b $BINDIR v0.86.0
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b $BINDIR v1.19.0
           curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o $BINDIR/cosign
           chmod +x $BINDIR/cosign
-          grype version && syft version && cosign version
 
       - name: Scan image with Grype
         shell: sh
         continue-on-error: true
         run: |
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          grype "$FIRST_TAG" \
-            --fail-on high \
-            --only-fixed \
-            -o sarif > /tmp/grype-results.sarif 2>&1 || true
+          grype "$FIRST_TAG" --fail-on high --only-fixed -o sarif > /tmp/grype-results.sarif 2>&1 || true
 
       - name: Generate SBOM with Syft
         shell: sh
         continue-on-error: true
         run: |
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          syft "$FIRST_TAG" \
-            -o spdx-json > /tmp/sbom.spdx.json 2>&1 || true
+          syft "$FIRST_TAG" -o spdx-json > /tmp/sbom.spdx.json 2>&1 || true
 
       - name: Sign the image with Cosign
         shell: sh
         env:
           COSIGN_EXPERIMENTAL: 1
         run: |
-          FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          cosign sign --yes "$FIRST_TAG@${{ steps.build.outputs.digest }}"
+          cosign sign --yes "ghcr.io/${{ matrix.target.image }}@${{ steps.digest.outputs.digest }}"
 
       - name: Upload scan results
         if: always()
@@ -164,5 +165,5 @@ jobs:
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
         with:
           subject-name: ghcr.io/${{ matrix.target.image }}
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
           push-to-registry: true
