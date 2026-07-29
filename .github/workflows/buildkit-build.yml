@@ -24,9 +24,14 @@ on:
 env:
   REGISTRY: ghcr.io
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
+  http_proxy: http://squid.arc-proxy.svc.cluster.local:3128
+  https_proxy: http://squid.arc-proxy.svc.cluster.local:3128
+  no_proxy: 10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1
 
 jobs:
   build:
+    container:
+      image: alpine:3.21
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
@@ -80,6 +85,11 @@ jobs:
           DF="${{ inputs.dockerfile || matrix.target.dockerfile }}"
           echo "path=$DF" >> $GITHUB_OUTPUT
 
+      - name: Install buildkit and curl
+        shell: sh
+        run: |
+          apk add --no-cache buildctl buildkit curl
+
       - name: Set up GHCR auth
         shell: sh
         run: |
@@ -98,7 +108,14 @@ jobs:
             "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null; then
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
           fi
-          buildctl-daemonless.sh build \
+          # Start buildkitd, run build, then clean up
+          buildkitd --oci-worker-no-process-sandbox &
+          BUILDKITD_PID=$!
+          for i in $(seq 1 10); do
+            buildctl debug workers >/dev/null 2>&1 && break
+            sleep 1
+          done
+          buildctl build \
             --frontend dockerfile.v0 \
             --opt context=$CONTEXT \
             --opt filename=${{ steps.df.outputs.path }} \
@@ -108,6 +125,8 @@ jobs:
             --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
             $CACHE_ARGS \
             --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
+          kill $BUILDKITD_PID 2>/dev/null || true
+          wait $BUILDKITD_PID 2>/dev/null || true
 
       - name: Install scan/SBOM/signing tools
         shell: sh
