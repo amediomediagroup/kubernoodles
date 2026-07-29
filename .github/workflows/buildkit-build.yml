@@ -76,4 +76,4 @@ jobs:
             --opt platform=$PLATFORMS \
             --export-cache type=registry,ref=$REGISTRY/$CACHE,mode=max \
             --import-cache type=registry,ref=$REGISTRY/$CACHE \
-            --output type=image,"name=${{ steps.tags.outputs.names }}",push=true
+            --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
