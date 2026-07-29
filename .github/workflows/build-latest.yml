@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-all:
-    runs-on: gha-k8s-storage # use the GitHub-hosted ARM runner to build the image
+    runs-on: gha-runners # use the GitHub-hosted ARM runner to build the image
     permissions:
       contents: write # for uploading the SBOM to the release
       packages: write # for uploading the finished container
