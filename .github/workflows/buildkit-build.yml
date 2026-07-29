@@ -1,4 +1,4 @@
-name: 🧪 Build with BuildKit (Daemonless)
+name: 🧪 Build with BuildKit
 
 on:
   push:
@@ -22,19 +22,11 @@ on:
         default: ''
 
 env:
-  BUILDKITD_FLAGS: --rootless --oci-worker-no-process-sandbox
-  BUILDKIT_OCI_EXECUTOR: no-process-sandbox
   REGISTRY: ghcr.io
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
-  # Proxy for DNS-fix: buildkit:rootless has DNS resolution issues in its rootless network namespace
-  http_proxy: http://10.43.24.227:3128
-  https_proxy: http://10.43.24.227:3128
-  no_proxy: 10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1
 
 jobs:
   build:
-    container:
-      image: moby/buildkit:rootless
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
@@ -91,11 +83,9 @@ jobs:
       - name: Set up GHCR auth
         shell: sh
         run: |
-          mkdir -p /run/user/1000 /tmp/.docker
+          mkdir -p ~/.docker
           AUTH=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
-          echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH\"}}}" > /tmp/.docker/config.json
-          echo "DOCKER_CONFIG=/tmp/.docker" >> $GITHUB_ENV
-          echo "XDG_RUNTIME_DIR=/run/user/1000" >> $GITHUB_ENV
+          echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH\"}}}" > ~/.docker/config.json
 
       - name: Build multi-arch + push all tags
         id: build
@@ -103,8 +93,8 @@ jobs:
         run: |
           CACHE_REF="${{ steps.tags.outputs.CACHE_REF }}"
           CACHE_ARGS="--export-cache type=registry,ref=$CACHE_REF,mode=max"
-          if wget -q --method=HEAD \
-            --header="Authorization: Bearer $(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64)" \
+          TOKEN=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
+          if wget -q --method=HEAD --header="Authorization: Bearer $TOKEN" \
             "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null; then
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
           fi
@@ -119,27 +109,24 @@ jobs:
             $CACHE_ARGS \
             --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
 
+      - name: Install scan/SBOM/signing tools
+        shell: sh
+        run: |
+          BINDIR=/usr/local/bin
+          wget -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
+          wget -qO- "https://github.com/anchore/grype/releases/download/v0.86.0/grype_0.86.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR grype
+          wget -qO- "https://github.com/anchore/syft/releases/download/v1.19.0/syft_1.19.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR syft
+          wget -qO "$BINDIR/cosign" "https://github.com/sigstore/cosign/releases/download/v2.4.3/cosign-linux-amd64"
+          chmod +x $BINDIR/*
+
       - name: Resolve image digest
         id: digest
         shell: sh
         run: |
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          # download crane binary directly
-          wget -qO /tmp/crane https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz
-          tar -xzf /tmp/crane -C /tmp crane
-          DIGEST=$(/tmp/crane digest "$FIRST_TAG")
+          DIGEST=$(crane digest "$FIRST_TAG")
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
           echo "image_name=ghcr.io/${{ matrix.target.image }}" >> $GITHUB_OUTPUT
-
-      - name: Install scan/SBOM/signing tools
-        shell: sh
-        run: |
-          BINDIR=/tmp/bin && mkdir -p $BINDIR
-          echo "$BINDIR" >> $GITHUB_PATH
-          wget -qO- https://github.com/anchore/grype/releases/download/v0.86.0/grype_0.86.0_linux_amd64.tar.gz | tar -xz -C $BINDIR grype
-          wget -qO- https://github.com/anchore/syft/releases/download/v1.19.0/syft_1.19.0_linux_amd64.tar.gz | tar -xz -C $BINDIR syft
-          wget -qO $BINDIR/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
-          chmod +x $BINDIR/*
 
       - name: Scan image with Grype
         shell: sh
