@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       image_name:
-        description: 'Image name (e.g. amediomediagroup/kubernoodles/wolfi-squid)'
-        default: 'amediomediagroup/kubernoodles/squid'
+        description: 'Override image name (leave empty for matrix)'
+        default: ''
       dockerfile:
-        description: 'Dockerfile path in context repo'
-        default: 'images/wolfi.squid.Dockerfile'
+        description: 'Override Dockerfile path (leave empty for matrix)'
+        default: ''
       context:
         description: 'Git context (e.g. https://github.com/user/repo.git#refs/heads/main)'
         default: ''
@@ -25,11 +25,7 @@ env:
   BUILDKITD_FLAGS: --rootless --oci-worker-no-process-sandbox
   BUILDKIT_OCI_EXECUTOR: no-process-sandbox
   REGISTRY: ghcr.io
-  IMAGE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/squid' }}
-  CACHE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/squid' }}:buildcache
-  PLATFORMS: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
-  DOCKERFILE: ${{ inputs.dockerfile || 'images/wolfi.squid.Dockerfile' }}
 
 jobs:
   build:
@@ -41,23 +37,47 @@ jobs:
       contents: read
       packages: write
       id-token: write
+    strategy:
+      matrix:
+        target:
+          - name: wolfi-squid
+            image: amediomediagroup/kubernoodles/wolfi-squid
+            dockerfile: images/wolfi.squid.Dockerfile
+          - name: alpine-squid
+            image: amediomediagroup/kubernoodles/squid
+            dockerfile: images/alpine.squid.Dockerfile
+          - name: arc-runner
+            image: amediomediagroup/kubernoodles/arc-runner
+            dockerfile: images/arc-runner.Dockerfile
+          - name: kaniko-build-test
+            image: amediomediagroup/kubernoodles/kaniko-build
+            dockerfile: images/kaniko-build-test.Dockerfile
 
     steps:
       - name: Generate all tags
         id: tags
         shell: sh
         run: |
+          IMG="${{ inputs.image_name || matrix.target.image }}"
           SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
           ALL_TAGS="test $BRANCH sha-$SHA ${{ inputs.extra_tags }}"
-          # BuildKit output names: comma-separated
           NAMES=""
           for TAG in $ALL_TAGS; do
             [ -z "$TAG" ] && continue
             [ -n "$NAMES" ] && NAMES="${NAMES},"
-            NAMES="${NAMES}$REGISTRY/$IMAGE:$TAG"
+            NAMES="${NAMES}$REGISTRY/$IMG:$TAG"
           done
           echo "names=$NAMES" >> $GITHUB_OUTPUT
+          PREFIX=$(echo "$IMG" | sed 's/:[^:]*$//')
+          echo "CACHE_REF=$REGISTRY/$PREFIX:buildcache" >> $GITHUB_OUTPUT
+
+      - name: Resolve dockerfile
+        id: df
+        shell: sh
+        run: |
+          DF="${{ inputs.dockerfile || matrix.target.dockerfile }}"
+          echo "path=$DF" >> $GITHUB_OUTPUT
 
       - name: Set up GHCR auth
         shell: sh
@@ -74,11 +94,11 @@ jobs:
           buildctl-daemonless.sh build \
             --frontend dockerfile.v0 \
             --opt context=$CONTEXT \
-            --opt filename=$DOCKERFILE \
-            --opt platform=$PLATFORMS \
+            --opt filename=${{ steps.df.outputs.path }} \
+            --opt platform=${{ inputs.platforms || 'linux/amd64,linux/arm64' }} \
             --opt build-arg:http_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
             --opt build-arg:https_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
             --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
-            --export-cache type=registry,ref=$REGISTRY/$CACHE,mode=max \
-            --import-cache type=registry,ref=$REGISTRY/$CACHE \
+            --export-cache type=registry,ref=${{ steps.tags.outputs.CACHE_REF }},mode=max \
+            --import-cache type=registry,ref=${{ steps.tags.outputs.CACHE_REF }} \
             --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
