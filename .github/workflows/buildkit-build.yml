@@ -27,7 +27,7 @@ env:
   CACHE: ${{ inputs.image_name || 'amediomediagroup/kubernoodles/wolfi-squid' }}:buildcache
   PLATFORMS: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
   CONTEXT: ${{ inputs.context || 'https://github.com/trucpd/kubernoodles.git#refs/heads/main' }}
-  DOCKERFILE: ${{ inputs.dockerfile || 'images/kaniko-build-test.Dockerfile' }}
+  DOCKERFILE: ${{ inputs.dockerfile || 'images/wolfi.squid.Dockerfile' }}
 
 jobs:
   build:
