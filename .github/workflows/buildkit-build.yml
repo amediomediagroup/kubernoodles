@@ -31,6 +31,8 @@ env:
 
 jobs:
   build:
+    container:
+      image: moby/buildkit:rootless
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
