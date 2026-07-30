@@ -121,9 +121,11 @@ jobs:
       - name: Get digest
         shell: sh
         run: |
-          wget -Y off -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz crane
+          BINDIR=/home/user/bin
+          mkdir -p $BINDIR
+          wget -Y off -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          ./crane digest "$FIRST_TAG" > ${{ github.workspace }}/digest.txt
+          $BINDIR/crane digest "$FIRST_TAG" > ${{ github.workspace }}/digest.txt
 
       - name: Upload digest artifact
         uses: actions/upload-artifact@v4
