@@ -29,6 +29,7 @@ env:
   http_proxy: http://squid.arc-proxy.svc.cluster.local:3128
   https_proxy: http://squid.arc-proxy.svc.cluster.local:3128
   no_proxy: 10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1
+  DOCKER_CONFIG: /home/runner/_work/.docker
 
 jobs:
   build:
@@ -87,12 +88,13 @@ jobs:
           DF="${{ inputs.dockerfile || matrix.target.dockerfile }}"
           echo "path=$DF" >> $GITHUB_OUTPUT
 
-      - name: Set up GHCR auth for buildkit
+      - name: Set up GHCR auth for buildkit + runner
         shell: sh
         run: |
-          mkdir -p /run/user/1000 /tmp/.docker
+          mkdir -p /run/user/1000 /tmp/.docker /__w/.docker
           AUTH=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
           echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH\"}}}" > /tmp/.docker/config.json
+          cp /tmp/.docker/config.json /__w/.docker/config.json
           echo "DOCKER_CONFIG=/tmp/.docker" >> $GITHUB_ENV
           echo "XDG_RUNTIME_DIR=/run/user/1000" >> $GITHUB_ENV
 
@@ -124,18 +126,11 @@ jobs:
         run: |
           BINDIR=/home/user/bin
           mkdir -p $BINDIR
-          wget -Y off -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
+          wget -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
           DIGEST=$($BINDIR/crane digest "$FIRST_TAG")
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
           echo "IMAGE=ghcr.io/${{ matrix.target.image }}" >> $GITHUB_OUTPUT
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
@@ -155,7 +150,7 @@ jobs:
 
       - name: Upload scan results (SARIF)
         uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v3.29.5
-        if: always()
+        if: always() && steps.scan.outputs.sarif != ''
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
 
