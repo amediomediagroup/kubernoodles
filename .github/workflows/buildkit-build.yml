@@ -22,8 +22,6 @@ on:
         default: ''
 
 env:
-  BUILDKITD_FLAGS: --rootless --oci-worker-no-process-sandbox
-  BUILDKIT_OCI_EXECUTOR: no-process-sandbox
   REGISTRY: ghcr.io
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
   http_proxy: http://squid.arc-proxy.svc.cluster.local:3128
@@ -34,7 +32,7 @@ env:
 jobs:
   build:
     container:
-      image: moby/buildkit:rootless
+      image: moby/buildkit:latest
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
@@ -96,7 +94,6 @@ jobs:
           echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH\"}}}" > /tmp/.docker/config.json
           cp /tmp/.docker/config.json /__w/.docker/config.json
           echo "DOCKER_CONFIG=/tmp/.docker" >> $GITHUB_ENV
-          echo "XDG_RUNTIME_DIR=/run/user/1000" >> $GITHUB_ENV
 
       - name: Build cosign helper
         shell: sh
@@ -173,7 +170,7 @@ jobs:
           sarif_file: ${{ steps.scan.outputs.sarif }}
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
+        uses: anchore/sbom-action@17ae174900017c52c89186b61233e0f892c3118b11 # v0.23.0
         continue-on-error: true
         with:
           image: ${{ steps.digest.outputs.IMAGE }}@${{ steps.digest.outputs.digest }}
