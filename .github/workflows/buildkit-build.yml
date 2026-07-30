@@ -12,7 +12,7 @@ on:
         description: 'Override Dockerfile path (leave empty for matrix)'
         default: ''
       context:
-        description: 'Git context (e.g. https://github.com/user/repo.git#refs/heads/main)'
+        description: 'Git context'
         default: ''
       platforms:
         description: 'Comma-separated target platforms'
@@ -26,8 +26,8 @@ env:
   BUILDKIT_OCI_EXECUTOR: no-process-sandbox
   REGISTRY: ghcr.io
   CONTEXT: ${{ inputs.context || format('https://github.com/{0}.git#refs/heads/feat/build-kit', github.repository) }}
-  http_proxy: http://10.43.24.227:3128
-  https_proxy: http://10.43.24.227:3128
+  http_proxy: http://squid.arc-proxy.svc.cluster.local:3128
+  https_proxy: http://squid.arc-proxy.svc.cluster.local:3128
   no_proxy: 10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1
 
 jobs:
@@ -87,7 +87,7 @@ jobs:
           DF="${{ inputs.dockerfile || matrix.target.dockerfile }}"
           echo "path=$DF" >> $GITHUB_OUTPUT
 
-      - name: Set up GHCR auth
+      - name: Set up GHCR auth for buildkit
         shell: sh
         run: |
           mkdir -p /run/user/1000 /tmp/.docker
@@ -116,64 +116,106 @@ jobs:
             --opt build-arg:https_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
             --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
             $CACHE_ARGS \
-            --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true
+            --output type=image,\"name=${{ steps.tags.outputs.names }}\",push=true 2>&1 | tee /tmp/buildctl.log
 
-      - name: Install scan/SBOM/signing tools
+      - name: Get digest
         shell: sh
         run: |
-          BINDIR=/home/user/bin
-          mkdir -p $BINDIR
-          wget -Y off -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
-          wget -Y off -qO- "https://github.com/anchore/grype/releases/download/v0.86.0/grype_0.86.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR grype
-          wget -Y off -qO- "https://github.com/anchore/syft/releases/download/v1.19.0/syft_1.19.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR syft
-          wget -Y off -qO "$BINDIR/cosign" "https://github.com/sigstore/cosign/releases/download/v2.4.3/cosign-linux-amd64"
-          chmod +x $BINDIR/*
-          echo "PATH=$BINDIR:$PATH" >> $GITHUB_ENV
-
-      - name: Resolve image digest
-        id: digest
-        shell: sh
-        run: |
+          wget -Y off -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz crane
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          DIGEST=$(crane digest "$FIRST_TAG")
+          ./crane digest "$FIRST_TAG" > ${{ github.workspace }}/digest.txt
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.target.name }}
+          path: ${{ github.workspace }}/digest.txt
+          if-no-files-found: error
+
+  verify:
+    needs: build
+    container:
+      image: ubuntu:24.04
+    runs-on: gha-k8s-runners
+    permissions:
+      attestations: write
+      contents: write
+      packages: write
+      security-events: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: wolfi-squid
+            image: amediomediagroup/kubernoodles/wolfi-squid
+          - name: alpine-squid
+            image: amediomediagroup/kubernoodles/squid
+          - name: arc-runner
+            image: amediomediagroup/kubernoodles/arc-runner
+          - name: kaniko-build-test
+            image: amediomediagroup/kubernoodles/kaniko-build
+          - name: buildkit-tools
+            image: amediomediagroup/kubernoodles/buildkit-tools
+
+    steps:
+      - name: Download digest artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: digest-${{ matrix.target.name }}
+
+      - name: Set image reference
+        id: ref
+        run: |
+          DIGEST="$(cat ${{ github.workspace }}/digest.txt)"
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
-          echo "image_name=ghcr.io/${{ matrix.target.image }}" >> $GITHUB_OUTPUT
+          echo "IMAGE=ghcr.io/${{ matrix.target.image }}" >> $GITHUB_OUTPUT
 
-      - name: Scan image with Grype
-        shell: sh
-        continue-on-error: true
-        run: |
-          FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          grype "$FIRST_TAG" --fail-on high --only-fixed -o sarif > /tmp/grype-results.sarif 2>&1 || true
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate SBOM with Syft
-        shell: sh
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        id: attest
+        with:
+          subject-name: ${{ steps.ref.outputs.IMAGE }}
+          subject-digest: ${{ steps.ref.outputs.digest }}
+          push-to-registry: true
+
+      - name: Scan with Grype
+        uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
+        id: scan
         continue-on-error: true
+        with:
+          image: ${{ steps.ref.outputs.IMAGE }}@${{ steps.ref.outputs.digest }}
+          fail-build: false
+
+      - name: Upload scan results (SARIF)
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v3.29.5
+        if: always()
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
+        continue-on-error: true
+        with:
+          image: ${{ steps.ref.outputs.IMAGE }}@${{ steps.ref.outputs.digest }}
+          artifact-name: ${{ matrix.target.name }}-${{ github.sha }}.sbom
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      - name: Log in to GHCR for cosign
         run: |
-          FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          syft "$FIRST_TAG" -o spdx-json > /tmp/sbom.spdx.json 2>&1 || true
+          echo ${{ secrets.GITHUB_TOKEN }} | cosign login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Sign the image with Cosign
-        shell: sh
         env:
           COSIGN_EXPERIMENTAL: 1
         run: |
-          cosign sign --yes "ghcr.io/${{ matrix.target.image }}@${{ steps.digest.outputs.digest }}"
-
-      - name: Upload scan results
-        if: always()
-        shell: sh
-        run: |
-          if [ -f /tmp/grype-results.sarif ]; then
-            echo "Grype scan results:"
-            head -5 /tmp/grype-results.sarif
-            echo "..."
-          else
-            echo "No grype results to upload (scan skipped)"
-          fi
-
-      - name: Attest build provenance
-        shell: sh
-        run: |
-          echo "Digest: ${{ steps.digest.outputs.digest }}"
-          echo "Image: ghcr.io/${{ matrix.target.image }}"
+          cosign sign --yes "${{ steps.ref.outputs.IMAGE }}@${{ steps.ref.outputs.digest }}"
