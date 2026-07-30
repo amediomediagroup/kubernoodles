@@ -159,7 +159,13 @@ jobs:
           artifact-name: ${{ matrix.target.name }}-${{ github.sha }}.sbom
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        shell: sh
+        run: |
+          mkdir -p $HOME/.cosign
+          COSIGN_URL="https://github.com/sigstore/cosign/releases/download/v3.0.2/cosign-linux-amd64"
+          wget -qO $HOME/.cosign/cosign "$COSIGN_URL"
+          chmod +x $HOME/.cosign/cosign
+          echo "$HOME/.cosign" >> $GITHUB_PATH
 
       - name: Log in to GHCR for cosign
         run: |
