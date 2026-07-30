@@ -16,7 +16,7 @@ on:
         default: ''
       platforms:
         description: 'Comma-separated target platforms'
-        default: 'linux/amd64,linux/arm64'
+        default: 'linux/amd64'
       extra_tags:
         description: 'Additional tags (comma-separated)'
         default: ''
@@ -111,7 +111,7 @@ jobs:
             --frontend dockerfile.v0 \
             --opt context=$CONTEXT \
             --opt filename=${{ steps.df.outputs.path }} \
-            --opt platform=${{ inputs.platforms || 'linux/amd64,linux/arm64' }} \
+            --opt platform=${{ inputs.platforms || 'linux/amd64' }} \
             --opt build-arg:http_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
             --opt build-arg:https_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
             --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
