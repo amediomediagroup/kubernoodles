@@ -103,7 +103,7 @@ jobs:
           CACHE_REF="${{ steps.tags.outputs.CACHE_REF }}"
           CACHE_ARGS="--export-cache type=registry,ref=$CACHE_REF,mode=max"
           TOKEN=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
-          if wget -q --method=HEAD --header="Authorization: Bearer $TOKEN" \
+          if wget -qO- --method=HEAD --header="Authorization: Bearer $TOKEN" \
             "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null; then
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
           fi
@@ -123,10 +123,10 @@ jobs:
         run: |
           BINDIR=/home/user/bin
           mkdir -p $BINDIR
-          wget -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
-          wget -qO- "https://github.com/anchore/grype/releases/download/v0.86.0/grype_0.86.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR grype
-          wget -qO- "https://github.com/anchore/syft/releases/download/v1.19.0/syft_1.19.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR syft
-          wget -qO "$BINDIR/cosign" "https://github.com/sigstore/cosign/releases/download/v2.4.3/cosign-linux-amd64"
+          wget -Y off -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
+          wget -Y off -qO- "https://github.com/anchore/grype/releases/download/v0.86.0/grype_0.86.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR grype
+          wget -Y off -qO- "https://github.com/anchore/syft/releases/download/v1.19.0/syft_1.19.0_linux_amd64.tar.gz" | tar -xz -C $BINDIR syft
+          wget -Y off -qO "$BINDIR/cosign" "https://github.com/sigstore/cosign/releases/download/v2.4.3/cosign-linux-amd64"
           chmod +x $BINDIR/*
           echo "PATH=$BINDIR:$PATH" >> $GITHUB_ENV
 
