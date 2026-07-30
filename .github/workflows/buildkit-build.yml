@@ -34,10 +34,7 @@ env:
 jobs:
   build:
     container:
-      image: ghcr.io/amediomediagroup/kubernoodles/buildkit-tools:build-env
-      credentials:
-        username: trucpd
-        password: ${{ secrets.GITHUB_TOKEN }}
+      image: moby/buildkit:rootless
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
@@ -101,6 +98,27 @@ jobs:
           echo "DOCKER_CONFIG=/tmp/.docker" >> $GITHUB_ENV
           echo "XDG_RUNTIME_DIR=/run/user/1000" >> $GITHUB_ENV
 
+      - name: Build cosign helper
+        shell: sh
+        run: |
+          mkdir -p /tmp/helper-ctx /tmp/helper-out
+          cat > /tmp/helper-ctx/Dockerfile << 'DOCKERFILE'
+          FROM alpine:3.19
+          RUN apk add --no-cache curl
+          RUN curl -fsSLo /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/v3.0.2/cosign-linux-amd64" && chmod +x /usr/local/bin/cosign
+          DOCKERFILE
+          buildctl-daemonless.sh build \
+            --frontend dockerfile.v0 \
+            --local context=/tmp/helper-ctx \
+            --local dockerfile=/tmp/helper-ctx \
+            --opt build-arg:http_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
+            --opt build-arg:https_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
+            --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
+            --output type=local,dest=/tmp/helper-out 2>&1
+          cp /tmp/helper-out/usr/local/bin/cosign /usr/local/bin/cosign
+          chmod +x /usr/local/bin/cosign
+          cosign version
+
       - name: Build multi-arch + push all tags
         id: build
         shell: sh
@@ -108,8 +126,8 @@ jobs:
           CACHE_REF="${{ steps.tags.outputs.CACHE_REF }}"
           CACHE_ARGS="--export-cache type=registry,ref=$CACHE_REF,mode=max"
           TOKEN=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
-          if curl -sIo /dev/null -w "%{http_code}" --header="Authorization: Bearer $TOKEN" \
-            "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null | grep -q "^2"; then
+          if wget -s -q --header="Authorization: Bearer $TOKEN" \
+            "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null; then
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
           fi
           buildctl-daemonless.sh build \
@@ -160,7 +178,6 @@ jobs:
         with:
           image: ${{ steps.digest.outputs.IMAGE }}@${{ steps.digest.outputs.digest }}
           artifact-name: ${{ matrix.target.name }}-${{ github.sha }}.sbom
-
 
       - name: Log in to GHCR for cosign
         run: |
