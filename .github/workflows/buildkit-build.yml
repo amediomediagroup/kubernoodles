@@ -131,6 +131,9 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         id: attest
+        env:
+          no_proxy: fulcio.sigstore.dev,rekor.sigstore.dev,tuf-repo-cdn.sigstore.dev,.sigstore.dev
+          NO_PROXY: fulcio.sigstore.dev,rekor.sigstore.dev,tuf-repo-cdn.sigstore.dev,.sigstore.dev
         with:
           subject-name: ${{ steps.digest.outputs.IMAGE }}
           subject-digest: ${{ steps.digest.outputs.digest }}
