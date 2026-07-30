@@ -133,7 +133,6 @@ jobs:
         id: attest
         env:
           no_proxy: fulcio.sigstore.dev,rekor.sigstore.dev,tuf-repo-cdn.sigstore.dev,.sigstore.dev
-          NO_PROXY: fulcio.sigstore.dev,rekor.sigstore.dev,tuf-repo-cdn.sigstore.dev,.sigstore.dev
         with:
           subject-name: ${{ steps.digest.outputs.IMAGE }}
           subject-digest: ${{ steps.digest.outputs.digest }}
