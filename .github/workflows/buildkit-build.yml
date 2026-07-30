@@ -34,7 +34,7 @@ env:
 jobs:
   build:
     container:
-      image: moby/buildkit:rootless
+      image: ghcr.io/amediomediagroup/kubernoodles/buildkit-tools:build-env
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
@@ -105,8 +105,8 @@ jobs:
           CACHE_REF="${{ steps.tags.outputs.CACHE_REF }}"
           CACHE_ARGS="--export-cache type=registry,ref=$CACHE_REF,mode=max"
           TOKEN=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
-          if wget -qO- --method=HEAD --header="Authorization: Bearer $TOKEN" \
-            "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null; then
+          if curl -sIo /dev/null -w "%{http_code}" --header="Authorization: Bearer $TOKEN" \
+            "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null | grep -q "^2"; then
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
           fi
           buildctl-daemonless.sh build \
@@ -158,15 +158,6 @@ jobs:
           image: ${{ steps.digest.outputs.IMAGE }}@${{ steps.digest.outputs.digest }}
           artifact-name: ${{ matrix.target.name }}-${{ github.sha }}.sbom
 
-      - name: Install cosign
-        shell: sh
-        run: |
-          apk add --no-cache curl
-          mkdir -p $HOME/.cosign
-          COSIGN_URL="https://github.com/sigstore/cosign/releases/download/v3.0.2/cosign-linux-amd64"
-          curl -sLo $HOME/.cosign/cosign "$COSIGN_URL"
-          chmod +x $HOME/.cosign/cosign
-          echo "$HOME/.cosign" >> $GITHUB_PATH
 
       - name: Log in to GHCR for cosign
         run: |
