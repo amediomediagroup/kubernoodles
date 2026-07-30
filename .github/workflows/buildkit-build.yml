@@ -161,9 +161,10 @@ jobs:
       - name: Install cosign
         shell: sh
         run: |
+          apk add --no-cache curl
           mkdir -p $HOME/.cosign
           COSIGN_URL="https://github.com/sigstore/cosign/releases/download/v3.0.2/cosign-linux-amd64"
-          wget -qO $HOME/.cosign/cosign "$COSIGN_URL"
+          curl -sLo $HOME/.cosign/cosign "$COSIGN_URL"
           chmod +x $HOME/.cosign/cosign
           echo "$HOME/.cosign" >> $GITHUB_PATH
 
