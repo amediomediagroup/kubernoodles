@@ -35,6 +35,9 @@ jobs:
   build:
     container:
       image: ghcr.io/amediomediagroup/kubernoodles/buildkit-tools:build-env
+      credentials:
+        username: trucpd
+        password: ${{ secrets.GITHUB_TOKEN }}
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
