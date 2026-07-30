@@ -126,7 +126,14 @@ jobs:
         run: |
           BINDIR=/home/user/bin
           mkdir -p $BINDIR
-          wget -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
+          CRANE_URL="https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz"
+          # Fallback: bypass BusyBox wget redirect limit by resolving the chain
+          for _ in $(seq 1 10); do
+            LOCATION=$(wget -SqO- --max-redirect=0 "$CRANE_URL" 2>&1 | grep -i "^Location: " | tail -1 | sed 's/^[Ll]ocation: //' | tr -d '\r\n')
+            [ -z "$LOCATION" ] && break
+            CRANE_URL=$LOCATION
+          done
+          wget -qO- "$CRANE_URL" | tar -xz -C $BINDIR crane
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
           DIGEST=$($BINDIR/crane digest "$FIRST_TAG")
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
