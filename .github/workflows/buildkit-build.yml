@@ -125,13 +125,13 @@ jobs:
           mkdir -p $BINDIR
           wget -Y off -qO- "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz -C $BINDIR crane
           FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          $BINDIR/crane digest "$FIRST_TAG" > ${{ github.workspace }}/digest.txt
+          $BINDIR/crane digest "$FIRST_TAG" > /__w/digest.txt
 
       - name: Upload digest artifact
         uses: actions/upload-artifact@v4
         with:
           name: digest-${{ matrix.target.name }}
-          path: ${{ github.workspace }}/digest.txt
+          path: ${{ github.workspace }}/../../digest.txt
           if-no-files-found: error
 
   verify:
@@ -165,11 +165,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: digest-${{ matrix.target.name }}
+          path: ${{ github.workspace }}/../../
 
       - name: Set image reference
         id: ref
         run: |
-          DIGEST="$(cat ${{ github.workspace }}/digest.txt)"
+          DIGEST="$(cat /__w/digest.txt)"
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
           echo "IMAGE=ghcr.io/${{ matrix.target.image }}" >> $GITHUB_OUTPUT
 
