@@ -124,14 +124,7 @@ jobs:
         id: digest
         shell: sh
         run: |
-          FIRST_TAG=$(echo "${{ steps.tags.outputs.names }}" | cut -d, -f1)
-          TAG=$(echo "$FIRST_TAG" | sed 's/.*://')
-          TOKEN=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
-          DIGEST=$(wget -SqO- --method=HEAD \
-            --header="Authorization: Bearer $TOKEN" \
-            --header="Accept: application/vnd.docker.distribution.manifest.v2+json" \
-            "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/$TAG" 2>&1 | \
-            grep -i ":.*sha256:" | grep -o 'sha256:[a-f0-9]\{64\}')
+          DIGEST=$(grep -o '@sha256:[a-f0-9]\{64\}' /tmp/buildctl.log | head -1 | sed 's/@//')
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
           echo "IMAGE=ghcr.io/${{ matrix.target.image }}" >> $GITHUB_OUTPUT
 
