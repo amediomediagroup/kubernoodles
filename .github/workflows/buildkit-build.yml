@@ -32,7 +32,7 @@ env:
 jobs:
   build:
     container:
-      image: moby/buildkit:latest
+      image: ghcr.io/amediomediagroup/kubernoodles/buildkit-ns:latest
     runs-on: gha-k8s-runners
     permissions:
       attestations: write
@@ -95,24 +95,11 @@ jobs:
           cp /tmp/.docker/config.json /__w/.docker/config.json
           echo "DOCKER_CONFIG=/tmp/.docker" >> $GITHUB_ENV
 
-      - name: Build cosign helper
+      - name: Install cosign
         shell: sh
         run: |
-          mkdir -p /tmp/helper-ctx /tmp/helper-out
-          cat > /tmp/helper-ctx/Dockerfile << 'DOCKERFILE'
-          FROM alpine:3.19
-          RUN apk add --no-cache curl
-          RUN curl -fsSLo /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/v3.0.2/cosign-linux-amd64" && chmod +x /usr/local/bin/cosign
-          DOCKERFILE
-          buildctl-daemonless.sh build \
-            --frontend dockerfile.v0 \
-            --local context=/tmp/helper-ctx \
-            --local dockerfile=/tmp/helper-ctx \
-            --opt build-arg:http_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
-            --opt build-arg:https_proxy=http://squid.arc-proxy.svc.cluster.local:3128 \
-            --opt build-arg:no_proxy=10.43.0.1,10.42.0.0/16,192.168.0.0/16,.svc.cluster.local,localhost,127.0.0.1 \
-            --output type=local,dest=/tmp/helper-out 2>&1
-          cp /tmp/helper-out/usr/local/bin/cosign /usr/local/bin/cosign
+          wget -Y off -q -O /usr/local/bin/cosign \
+            "https://github.com/sigstore/cosign/releases/download/v3.0.2/cosign-linux-amd64"
           chmod +x /usr/local/bin/cosign
           cosign version
 
@@ -123,7 +110,7 @@ jobs:
           CACHE_REF="${{ steps.tags.outputs.CACHE_REF }}"
           CACHE_ARGS="--export-cache type=registry,ref=$CACHE_REF,mode=max"
           TOKEN=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
-          if wget -s -q --header="Authorization: Bearer $TOKEN" \
+          if wget -Y off -s -q --header="Authorization: Bearer $TOKEN" \
             "https://ghcr.io/v2/${{ matrix.target.image }}/manifests/buildcache" 2>/dev/null; then
             CACHE_ARGS="$CACHE_ARGS --import-cache type=registry,ref=$CACHE_REF"
           fi
